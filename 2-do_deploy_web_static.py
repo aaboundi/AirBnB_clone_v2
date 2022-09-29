@@ -27,40 +27,27 @@ def do_pack():
 
 
 def do_deploy(archive_path):
-    """Function to distribute an archive to a server"""
+    """Deploys the static files to the host servers.
+    Args:
+        archive_path (str): The path to the archived static files.
+    """
     if not os.path.exists(archive_path):
         return False
-    rex = r'^versions/(\S+).tgz'
-    match = re.search(rex, archive_path)
-    filename = match.group(1)
-    res = put(archive_path, "/tmp/{}.tgz".format(filename))
-    if res.failed:
-        return False
-    res = run("sudo mkdir -p /data/web_static/releases/{}/".format(filename))
-    if res.failed:
-        return False
-    res = run("sudo tar -xzf /tmp/{}.tgz -C /data/web_static/releases/{}/"
-              .format(filename, filename))
-    if res.failed:
-        return False
-    res = run("sudo rm /tmp/{}.tgz".format(filename))
-    if res.failed:
-        return False
-    res = run("sudo mv /data/web_static/releases/{}"
-              "/web_static/* /data/web_static/releases/{}/"
-              .format(filename, filename))
-    if res.failed:
-        return False
-    res = run("sudo rm -rf /data/web_static/releases/{}/web_static"
-              .format(filename))
-    if res.failed:
-        return False
-    res = run("sudo rm -rf /data/web_static/current")
-    if res.failed:
-        return False
-    res = run("sudo ln -s /data/web_static/releases/{}/ /data/web_static/current"
-              .format(filename))
-    if res.failed:
-        return False
-    print('New version deployed!')
-    return True
+    file_name = os.path.basename(archive_path)
+    folder_name = file_name.replace(".tgz", "")
+    folder_path = "/data/web_static/releases/{}/".format(folder_name)
+    success = False
+    try:
+        put(archive_path, "/tmp/{}".format(file_name))
+        run("sudo mkdir -p {}".format(folder_path))
+        run("sudo tar -xzf /tmp/{} -C {}".format(file_name, folder_path))
+        run("sudo rm -rf /tmp/{}".format(file_name))
+        run("sudo mv {}web_static/* {}".format(folder_path, folder_path))
+        run("sudo rm -rf {}web_static".format(folder_path))
+        run("sudo rm -rf /data/web_static/current")
+        run("sudo ln -s {} /data/web_static/current".format(folder_path))
+        print('New version deployed!')
+        success = True
+    except Exception:
+        success = False
+    return success
